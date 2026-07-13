@@ -276,7 +276,7 @@ void LocIdlClientDevice::sendPosRespEvent(
 
     memset(&gnssPosDiag, 0x00, sizeof(locIdlClientDiagPosition));
     getLocationRpt(_locationReport, ulpLoc, gnssPosDiag);
-    getLocationExtendedRpt(_locationReport, gpsLocExt, gnssPosDiag);
+    getLocationExtendedRpt(_locationReport, gpsLocExt, gnssPosDiag, ulpLoc);
 
     if (GPS_LOCATION_EXTENDED_HAS_LLA_VRP_BASED ==
        (gpsLocExt.flags & GPS_LOCATION_EXTENDED_HAS_LLA_VRP_BASED)) {

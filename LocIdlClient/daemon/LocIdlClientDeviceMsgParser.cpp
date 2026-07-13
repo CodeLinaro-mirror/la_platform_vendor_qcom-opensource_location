@@ -6,6 +6,9 @@
 #include "LocIdlClientDevice.h"
 
 #define DEFAULT_ELAPSED_REAL_TIMEUNC (100)
+#define DEFAULT_MIN_SPEED_MPS        (0.15)
+#define DEFAULT_BEARING_DEGREES      (0.0)
+#define DEFAULT_BEARING_ACCURACY     (359.999)
 
 void LocIdlClientDevice::fillPosTechMask(unsigned int techmask, unsigned int &outMask)
 {
@@ -534,6 +537,15 @@ void LocIdlClientDevice::getLocationRpt(
 
         gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_BIT;
         gnssPosDiag.bearing = location.getBearing();
+    } else {
+        if ((flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+           ulpLoc.gpsLocation.flags |= LOC_GPS_LOCATION_HAS_BEARING;
+           ulpLoc.gpsLocation.bearing = DEFAULT_BEARING_DEGREES;
+
+           gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_BIT;
+           gnssPosDiag.bearing = DEFAULT_BEARING_DEGREES;
+        }
     }
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_ACCURACY_BIT) {
         ulpLoc.gpsLocation.flags |= LOC_GPS_LOCATION_HAS_ACCURACY;
@@ -556,6 +568,12 @@ void LocIdlClientDevice::getLocationRpt(
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_BEARING_ACCURACY_BIT) {
         gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_ACCURACY_BIT;
         gnssPosDiag.bearingAccuracy = location.getBearingAccuracy();
+    } else {
+        if ((flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+            gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_ACCURACY_BIT;
+            gnssPosDiag.bearingAccuracy = DEFAULT_BEARING_ACCURACY;
+        }
     }
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_TIMESTAMP_BIT) {
         ulpLoc.gpsLocation.timestamp = location.getTimestamp();
@@ -608,7 +626,8 @@ void LocIdlClientDevice::getLocationRpt(
 void LocIdlClientDevice::getLocationExtendedRpt(
                                 const LocationTypes::LocationReportT &_locationReport,
                                 GpsLocationExtended &gpsLocExt,
-                                locIdlClientDiagPosition    &gnssPosDiag
+                                locIdlClientDiagPosition    &gnssPosDiag,
+                                UlpLocation &ulpLoc
                                 )
 {
     const LocationTypes::LocationT &location = _locationReport.getLocInfo();
@@ -661,6 +680,12 @@ void LocIdlClientDevice::getLocationExtendedRpt(
     if (lInfoflags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_BEARING_ACCURACY_BIT) {
         gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_BEARING_UNC;
         gpsLocExt.bearing_unc = location.getBearingAccuracy ();
+    } else {
+        if ((lInfoflags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+            gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_BEARING_UNC;
+            gpsLocExt.bearing_unc = DEFAULT_BEARING_ACCURACY;
+        }
     }
     if (lFlags & LocationTypes::LocationReportFlagMaskT::LRFMT_HOR_RELIABILITY) {
         gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_HOR_RELIABILITY;
