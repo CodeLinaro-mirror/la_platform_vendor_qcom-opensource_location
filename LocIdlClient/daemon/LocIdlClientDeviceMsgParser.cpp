@@ -586,7 +586,7 @@ void LocIdlClientDevice::getLocationRpt(
         uint64_t  tx_ptp_time_ns = _locationReport.getElapsedgPtpTime();
         if ((nullptr == gPTPReqIf) ||
            (false == gPTPReqIf->gptpGetBootTimeFromPtpTimeIf(&boot_time_ns, tx_ptp_time_ns))) {
-            boot_time_ns = tx_ptp_time_ns;
+            boot_time_ns = TimeTickfromBootupInNanoSec();
         }
         ulpLoc.gpsLocation.elapsedRealTime = boot_time_ns;
         ulpLoc.gpsLocation.elapsedRealTimeUnc = DEFAULT_ELAPSED_REAL_TIMEUNC;
@@ -1659,7 +1659,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
                                         measData[idx].getFullInterSignalBiasUncertaintyNs();
 
             gnssMeasDiag.measurements[idx].flags |=
-                                    LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_GNSS_SIGNAL_TYPE_BIT;
+                        LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_FULL_ISB_UNCERTAINTY_BIT;
             gnssMeasDiag.measurements[idx].fullInterSignalBiasNs =
                                     measData[idx].getFullInterSignalBiasNs();
             gnssMeasDiag.measurements[idx].fullInterSignalBiasUncertaintyNs =
@@ -1684,7 +1684,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
             svMeasurementSet.gnssMeasNotification.measurements[idx].gnssSignalType = sigType;
 
             gnssMeasDiag.measurements[idx].flags |=
-                                LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_FULL_ISB_BIT;
+                                LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_GNSS_SIGNAL_TYPE_BIT;
             gnssMeasDiag.measurements[idx].gnssSignalType = sigType;
         }
         if (flags &
@@ -1863,7 +1863,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
         uint64_t  tx_ptp_time_ns = clk.getElapsedgPtpTime();
         if ((nullptr == gPTPReqIf) ||
            (false == gPTPReqIf->gptpGetBootTimeFromPtpTimeIf(&boot_time_ns, tx_ptp_time_ns))) {
-           boot_time_ns = tx_ptp_time_ns;
+           boot_time_ns = TimeTickfromBootupInNanoSec();
         }
 
         svMeasurementSet.gnssMeasNotification.clock.flags |=
@@ -1957,4 +1957,28 @@ void LocIdlClientDevice::getSvRpt(const vector<LocationTypes::GnssSvDataT> &gnss
             gnssSVDiag.gnssSvs[idx].gloFrequency =  gnssSvf[idx].getGloFrequency();
         }
     }
+}
+
+/**
+ * @brief      Provide time tick from bootup in nanoseconds
+ * @param[in]  None
+ * @return     Time tick in nanoseconds since device bootup (including suspend time)
+ */
+uint64_t LocIdlClientDevice::TimeTickfromBootupInNanoSec(void)
+{
+#ifdef __ANDROID__
+    return android::elapsedRealtimeNano();
+#else
+    struct timespec ts;
+    uint64_t time_ns = 0;
+    if (clock_gettime(CLOCK_BOOTTIME, &ts) != 0) {
+        LOC_LOGE("%s] clock_gettime failed, errno=%d", __func__, errno);
+        return 0;
+    }
+
+    time_ns += (ts.tv_sec * 1000000000LL);  /* Seconds to nanoseconds */
+    time_ns += ts.tv_nsec;                   /* Nanoseconds (already in ns) */
+
+    return time_ns;
+#endif
 }

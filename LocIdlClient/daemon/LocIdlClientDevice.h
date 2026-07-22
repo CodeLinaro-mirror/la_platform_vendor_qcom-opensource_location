@@ -141,6 +141,7 @@ public:
     GnssMeasurementsCodeType parseMeasCodeType(uint32_t idlMeasCodeType);
 private:
    static LocIdlClientDevice* mInstance;
+   uint64_t TimeTickfromBootupInNanoSec(void);
 };
 
 #endif /* LOC_IDL_CLIENT_DEVICE_H */
