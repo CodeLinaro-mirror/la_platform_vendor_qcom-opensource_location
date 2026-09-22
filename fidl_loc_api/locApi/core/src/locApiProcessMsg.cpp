@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <math.h>
 
 #include "msg_q.h"
 #include "gps_extended_c.h"
