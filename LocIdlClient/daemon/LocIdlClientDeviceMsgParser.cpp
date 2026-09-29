@@ -6,6 +6,9 @@
 #include "LocIdlClientDevice.h"
 
 #define DEFAULT_ELAPSED_REAL_TIMEUNC (100)
+#define DEFAULT_MIN_SPEED_MPS        (0.15)
+#define DEFAULT_BEARING_DEGREES      (0.0)
+#define DEFAULT_BEARING_ACCURACY     (359.999)
 
 void LocIdlClientDevice::fillPosTechMask(unsigned int techmask, unsigned int &outMask)
 {
@@ -534,6 +537,15 @@ void LocIdlClientDevice::getLocationRpt(
 
         gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_BIT;
         gnssPosDiag.bearing = location.getBearing();
+    } else {
+        if ((flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+           ulpLoc.gpsLocation.flags |= LOC_GPS_LOCATION_HAS_BEARING;
+           ulpLoc.gpsLocation.bearing = DEFAULT_BEARING_DEGREES;
+
+           gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_BIT;
+           gnssPosDiag.bearing = DEFAULT_BEARING_DEGREES;
+        }
     }
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_ACCURACY_BIT) {
         ulpLoc.gpsLocation.flags |= LOC_GPS_LOCATION_HAS_ACCURACY;
@@ -556,6 +568,12 @@ void LocIdlClientDevice::getLocationRpt(
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_BEARING_ACCURACY_BIT) {
         gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_ACCURACY_BIT;
         gnssPosDiag.bearingAccuracy = location.getBearingAccuracy();
+    } else {
+        if ((flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+            gnssPosDiag.flags |=  LOC_IDL_CLIENT_DIAG_LOCATION_HAS_BEARING_ACCURACY_BIT;
+            gnssPosDiag.bearingAccuracy = DEFAULT_BEARING_ACCURACY;
+        }
     }
     if (flags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_TIMESTAMP_BIT) {
         ulpLoc.gpsLocation.timestamp = location.getTimestamp();
@@ -568,7 +586,7 @@ void LocIdlClientDevice::getLocationRpt(
         uint64_t  tx_ptp_time_ns = _locationReport.getElapsedgPtpTime();
         if ((nullptr == gPTPReqIf) ||
            (false == gPTPReqIf->gptpGetBootTimeFromPtpTimeIf(&boot_time_ns, tx_ptp_time_ns))) {
-            boot_time_ns = tx_ptp_time_ns;
+            boot_time_ns = TimeTickfromBootupInNanoSec();
         }
         ulpLoc.gpsLocation.elapsedRealTime = boot_time_ns;
         ulpLoc.gpsLocation.elapsedRealTimeUnc = DEFAULT_ELAPSED_REAL_TIMEUNC;
@@ -608,7 +626,8 @@ void LocIdlClientDevice::getLocationRpt(
 void LocIdlClientDevice::getLocationExtendedRpt(
                                 const LocationTypes::LocationReportT &_locationReport,
                                 GpsLocationExtended &gpsLocExt,
-                                locIdlClientDiagPosition    &gnssPosDiag
+                                locIdlClientDiagPosition    &gnssPosDiag,
+                                UlpLocation &ulpLoc
                                 )
 {
     const LocationTypes::LocationT &location = _locationReport.getLocInfo();
@@ -661,6 +680,12 @@ void LocIdlClientDevice::getLocationExtendedRpt(
     if (lInfoflags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_BEARING_ACCURACY_BIT) {
         gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_BEARING_UNC;
         gpsLocExt.bearing_unc = location.getBearingAccuracy ();
+    } else {
+        if ((lInfoflags & LocationTypes::LocationFlagsMaskT::LFMT_HAS_LAT_LONG_BIT) &&
+            (ulpLoc.gpsLocation.speed < DEFAULT_MIN_SPEED_MPS)) {
+            gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_BEARING_UNC;
+            gpsLocExt.bearing_unc = DEFAULT_BEARING_ACCURACY;
+        }
     }
     if (lFlags & LocationTypes::LocationReportFlagMaskT::LRFMT_HOR_RELIABILITY) {
         gpsLocExt.flags |= GPS_LOCATION_EXTENDED_HAS_HOR_RELIABILITY;
@@ -1634,7 +1659,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
                                         measData[idx].getFullInterSignalBiasUncertaintyNs();
 
             gnssMeasDiag.measurements[idx].flags |=
-                                    LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_GNSS_SIGNAL_TYPE_BIT;
+                        LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_FULL_ISB_UNCERTAINTY_BIT;
             gnssMeasDiag.measurements[idx].fullInterSignalBiasNs =
                                     measData[idx].getFullInterSignalBiasNs();
             gnssMeasDiag.measurements[idx].fullInterSignalBiasUncertaintyNs =
@@ -1659,7 +1684,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
             svMeasurementSet.gnssMeasNotification.measurements[idx].gnssSignalType = sigType;
 
             gnssMeasDiag.measurements[idx].flags |=
-                                LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_FULL_ISB_BIT;
+                                LOC_IDL_CLIENT_DIAG_GNSS_MEASUREMENTS_DATA_GNSS_SIGNAL_TYPE_BIT;
             gnssMeasDiag.measurements[idx].gnssSignalType = sigType;
         }
         if (flags &
@@ -1838,7 +1863,7 @@ void LocIdlClientDevice::getMeasurementSet(const LocationTypes::GnssMeasurements
         uint64_t  tx_ptp_time_ns = clk.getElapsedgPtpTime();
         if ((nullptr == gPTPReqIf) ||
            (false == gPTPReqIf->gptpGetBootTimeFromPtpTimeIf(&boot_time_ns, tx_ptp_time_ns))) {
-           boot_time_ns = tx_ptp_time_ns;
+           boot_time_ns = TimeTickfromBootupInNanoSec();
         }
 
         svMeasurementSet.gnssMeasNotification.clock.flags |=
@@ -1932,4 +1957,28 @@ void LocIdlClientDevice::getSvRpt(const vector<LocationTypes::GnssSvDataT> &gnss
             gnssSVDiag.gnssSvs[idx].gloFrequency =  gnssSvf[idx].getGloFrequency();
         }
     }
+}
+
+/**
+ * @brief      Provide time tick from bootup in nanoseconds
+ * @param[in]  None
+ * @return     Time tick in nanoseconds since device bootup (including suspend time)
+ */
+uint64_t LocIdlClientDevice::TimeTickfromBootupInNanoSec(void)
+{
+#ifdef __ANDROID__
+    return android::elapsedRealtimeNano();
+#else
+    struct timespec ts;
+    uint64_t time_ns = 0;
+    if (clock_gettime(CLOCK_BOOTTIME, &ts) != 0) {
+        LOC_LOGE("%s] clock_gettime failed, errno=%d", __func__, errno);
+        return 0;
+    }
+
+    time_ns += (ts.tv_sec * 1000000000LL);  /* Seconds to nanoseconds */
+    time_ns += ts.tv_nsec;                   /* Nanoseconds (already in ns) */
+
+    return time_ns;
+#endif
 }

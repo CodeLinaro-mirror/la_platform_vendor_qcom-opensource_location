@@ -103,7 +103,7 @@ public:
                         UlpLocation &ulpLoc, locIdlClientDiagPosition &gnssPosDiag);
     void getLocationExtendedRpt(const LocationTypes::LocationReportT &_locationReport,
                         GpsLocationExtended &gpsLocExt,
-                        locIdlClientDiagPosition &gnssPosDiag);
+                        locIdlClientDiagPosition &gnssPosDiag, UlpLocation &ulpLoc);
     void fillPosTechMask(unsigned int techmask, unsigned int &outMask);
     void sendGnssMeasRespEvent(const LocationTypes::GnssMeasurementsT& gnssMeasurements);
     void getMeasurementSet(const LocationTypes::GnssMeasurementsT& gnssMeasurement,
@@ -141,6 +141,7 @@ public:
     GnssMeasurementsCodeType parseMeasCodeType(uint32_t idlMeasCodeType);
 private:
    static LocIdlClientDevice* mInstance;
+   uint64_t TimeTickfromBootupInNanoSec(void);
 };
 
 #endif /* LOC_IDL_CLIENT_DEVICE_H */
